@@ -1,0 +1,257 @@
+---
+title: "Modeling and prediction for movies"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+Make sure your data and R Markdown files are in the same directory. When loaded
+your data file will be called `movies`. Delete this note when before you submit 
+your work. 
+
+```{r load-data}
+load("movies.Rdata")
+movies$thtr_rel_year <- factor(movies$thtr_rel_year)
+movies$thtr_rel_month <- factor(movies$thtr_rel_month)
+movies$thtr_rel_day <- factor(movies$thtr_rel_day)
+movies$dvd_rel_year <- factor(movies$dvd_rel_year)
+movies$dvd_rel_month <- factor(movies$dvd_rel_month)
+movies$dvd_rel_day <- factor(movies$dvd_rel_day)
+```
+
+
+
+* * *
+
+## Part 1: Data
+
+According to the description of information on the data, this data set is comprised of 651 __randomly sampled__ movies produced and released before 2016. Since it is randomly sampled, it can be representative of population, which is all movies in this context. However, because the data set does not come from experiment, there is no division into control and experimental group. As a result, we cannot claim any causality in this analysis.
+
+* * *
+
+## Part 2: Research question
+
+My research topic is what properties of movie makes audience watch the movie. You should notice that it is slightly different from what makes spectators be enthusiastic about movies. I was curious about this question because sometimes some films get criticized by people, they are a box office hit and vice versa. These situations get out of our common sense that rave received films should make a success.
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+To deal with my topic, I should pick some variables including independent ones and dependent one. It would be better if there is number of drawn viewers for each movie, but there's not. So I picked the variable *imdb_num_votes* which is the number of votes on IMDB as representative of box office number. There could be weak association between two figures, but at least it implies that the movie draws audience's attention to rate for the movie. Therefore, it is some kind of popularity in some respect.
+Then I exclude some unuseful variables and duplicate variables. Unuseful ones are character variables such as *studio*, *director* and duplicate ones are *critics rating* and *audience_rating* which are categorized ones of existing numerical variables.
+Finally, I left 19 variables for explanatory variables: *title_type, genre, runtime, mpaa_rating, thtr_rel_year, thtr_rel_month, thtr_rel_day, dvd_rel_year, dvd_rel_month, dvd_rel_day, imdb_rating, critics_score, audience_score, best_pic_nom, best_pic_win, best_actor_win, best_actress win, best_dir_win, top200_box*
+
+Among these, I deliberately chose some to include in EDA sections to make drawn plots show some trends. Y-axis in these plots are all logarithmic number of *imdb_num_votes*.
+
+```{r}
+table(movies$title_type)
+ggplot(movies, aes(x=title_type, y=log(imdb_num_votes))) + geom_boxplot()
+```
+
+This plot shows the number of votes on IMDB depending on type of movie. Among three types, feature film draw the largest the number of votes compared to others. However, we notice that the number of movies classified into TV movie is so small that we should keep in mind when interpreting it.
+
+```{r}
+table(movies$genre)
+ggplot(movies, aes(x=genre, y=log(imdb_num_votes))) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+This plot shows the number of votes on IMDB depending on genre of movie. Among types, documentary film distinctly draws the smallest number of votes compared to others. However, we notice that the number of movies classified into Animation and Science Fiction & Fantasy are relatively small that we should keep in mind when interpreting it.
+
+```{r}
+ggplot(movies, aes(x=runtime, y=log(imdb_num_votes))) + geom_point()
+```
+
+This plot shows the number of votes on IMDB depending on runtime. We can see that modest log-linear --not linear because y is logged number-- relationship between two variables. However, above 150 minutes of runtime, the relationship is gone.
+
+```{r}
+table(movies$thtr_rel_year)
+ggplot(movies, aes(x=thtr_rel_year, y=log(imdb_num_votes))) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+This plot shows the number of votes on IMDB depending on year released in theater of movie. We can see that as year increases, the number of votes steadily increases. So I will __convert this variable into year passed from 1970__ in order to include this increasing trend in my model. This also applies to dvd_rel_year. However, we notice that number of movies released in a few years are so small that we should keep in mind when interpreting it.
+```{r}
+movies$thtr_rel_year <- as.numeric(as.character(movies$thtr_rel_year))
+movies$thtr_rel_year <- movies$thtr_rel_year - 1970
+movies$dvd_rel_year <- as.numeric(as.character(movies$dvd_rel_year))
+movies$dvd_rel_year <- movies$dvd_rel_year - 1970
+```
+
+
+```{r}
+table(movies$thtr_rel_month)
+ggplot(movies, aes(x=thtr_rel_month, y=log(imdb_num_votes))) + geom_boxplot()
+```
+
+This plot shows the number of votes on IMDB depending on month released in theater of movie. 
+
+```{r}
+table(movies$best_pic_nom)
+ggplot(movies, aes(x=best_pic_nom, y=log(imdb_num_votes))) + geom_boxplot()
+```
+
+This plot shows the number of votes on IMDB depending on Whether or not the movie was nominated for a best picture Oscar. We can see that nominated films draw more votes on average.
+
+```{r}
+table(movies$best_pic_win)
+ggplot(movies, aes(x=best_pic_win, y=log(imdb_num_votes))) + geom_boxplot()
+```
+
+This plot shows the number of votes on IMDB depending on Whether or not the movie won a best picture Oscar. We can see that winner draw more votes on average and the difference gets bigger than nominated one and not nominated one.
+
+```{r}
+ggplot(movies, aes(x=critics_score, y=log(imdb_num_votes))) + geom_point()
+```
+
+This plot shows the number of votes on IMDB depending on score marked by critics on Rotten Tomatoes. Interestingly, high score does not guarantee large number of votes.
+
+```{r}
+ggplot(movies, aes(x=audience_score, y=log(imdb_num_votes))) + geom_point()
+```
+
+This plot shows the number of votes on IMDB depending on score marked by audience on Rotten Tomatoes. Like the last plot, high score does not guarantee large number of votes.
+
+* * *
+
+## Part 4: Modeling
+
+So, I will conduct linear regression modeling with 19 variables. 
+
+```{r}
+linear_model <- lm(log(imdb_num_votes) ~ title_type + genre + runtime + mpaa_rating + thtr_rel_year + thtr_rel_month + thtr_rel_day + dvd_rel_year + dvd_rel_month + dvd_rel_day + imdb_rating + critics_score + audience_score + best_pic_nom + best_pic_win + best_actor_win + best_actress_win + best_dir_win + top200_box, data = movies)
+summary(linear_model)
+```
+
+I think there are too many variables and I'll try to exclude some variables to increase Adjusted R-squared and predictability of the model. I would use backward selection using adjusted R-squared. Since these steps consume a lot of pages in the paper, I'll summarize steps.
+
+Adjusted R-square
+
+model - *title_type* : 0.5546
+
+model - *genre* : 0.5082
+
+model - *runtime* : 0.5662
+
+model - *mpaa_rating* : 0.5493
+
+model - *thtr_rel_year* : 0.5154
+
+model - *thtr_rel_month* : 0.5727
+
+model - *thtr_rel_day* : 0.5811
+
+model - *dvd_rel_year* : 0.5696
+
+model - *dvd_rel_month* : 0.5517
+
+model - *dvd_rel_day* : 0.5653
+
+model - *imdb_rating* : 0.5566
+
+model - *critics_score* : 0.5719
+
+model - *audience_score* : 0.5655
+
+model - *best_pic_nom* : 0.5713
+
+model - *best_pic_win* : 0.568
+
+model - *best_actor_win* : 0.5707
+
+model - *best_actress_win* : 0.5715
+
+model - *best_dir_win* : 0.5696
+
+model - *top200_box* : 0.5607
+
+
+When I exclude *thtr_rel_day* from model, adjusted R-square increase most. So, I will exclude this variable. Like these, I will conduct selection until there is no variable if it is excluded from the model, total adjusted R-square does increase.
+
+```{r}
+new_linear_model <- lm(log(imdb_num_votes) ~ title_type + genre + runtime + mpaa_rating + thtr_rel_year + dvd_rel_year + thtr_rel_month + dvd_rel_month + dvd_rel_day + imdb_rating + audience_score + best_pic_nom + best_pic_win + best_actor_win + best_dir_win + top200_box, data = movies)
+summary(new_linear_model)
+```
+
+Finally, I got new model whose adjusted R-square got about 0.01 increased.
+
+Next step, I will conduct checking model assumptions using graph.
+
+```{r}
+hist(new_linear_model$residuals)
+qqnorm(new_linear_model$residuals)
+qqline(new_linear_model$residuals)
+```
+
+With above histogram and qqplot, We can see that residuals are normally distributed.
+
+And with each numerical explanatory variable, we should check linear relationship with response variable. There are six numerical explanatory variables.
+
+```{r}
+plot(new_linear_model$residuals ~ movies$runtime[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "runtime")
+plot(new_linear_model$residuals ~ movies$thtr_rel_year[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "thtr_rel_year")
+plot(new_linear_model$residuals ~ movies$dvd_rel_year[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "dvd_rel_year")
+plot(new_linear_model$residuals ~ movies$imdb_rating[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "imdb_rating")
+plot(new_linear_model$residuals ~ movies$critics_score[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "critics_score")
+plot(new_linear_model$residuals ~ movies$audience_score[-c(new_linear_model$na.action)], ylab = "residuals", xlab = "audience_score")
+```
+
+In the case of *runtime* and *imdb_rating*, there is slight far from random scatter plot. However, the extent is weak so we can claim that all numerical variables are linearly associated with response variable.
+
+Next I will check constant variability of residuals against fitted values.
+
+```{r}
+plot(new_linear_model$residuals ~ new_linear_model$fitted.values, ylab = "residuals", xlab = "fitted value")
+plot(abs(new_linear_model$residuals) ~ new_linear_model$fitted.values, ylab = "absolute residuals", xlab = "fitted value")
+
+```
+
+We can see that residuals have constant variability using above plots because residual plot shows randomly scattered points and absolute residual plot shows limited outliers.
+
+Lastly, I cannot identify order of collections so checking time dependencies are not possible.
+
+* * *
+
+## Part 5: Prediction
+
+I'll predict the number of votes of the movie "Deadpool" which was released in 2016. 
+
+```{r}
+deadpool <- data.frame("Deadpool","Feature Film","Action & Adventure",108,"PG-13","Twentieth Century Fox",2016,2,16,2016,5,10,8,793396,"Certified Fresh",84,"Upright",90,"no","no","no","no","no","yes","Tim Miller","Ryan Reynolds","Morena Baccarin","Ed Skrein","T. J. Miller","Gina Carano", "https://www.imdb.com/title/tt1431045/","https://www.rottentomatoes.com/m/deadpool")
+colnames(deadpool) <- colnames(movies)
+deadpool$thtr_rel_year <- deadpool$thtr_rel_year - 1970
+deadpool$dvd_rel_year <- deadpool$dvd_rel_year - 1970
+deadpool$thtr_rel_month <- factor(deadpool$thtr_rel_month)
+deadpool$thtr_rel_day <- factor(deadpool$thtr_rel_day)
+deadpool$dvd_rel_month <- factor(deadpool$dvd_rel_month)
+deadpool$dvd_rel_day <- factor(deadpool$dvd_rel_day)
+print("Predicted number of votes in log : ")
+predict.lm(new_linear_model, deadpool)
+print("Real number of votes in log : ")
+log(deadpool$imdb_num_votes)
+
+predict.lm(new_linear_model, deadpool, interval = "prediction")
+
+```
+
+Using information about movie "Deadpool", I predicted the number of votes on the movie. And it was quite accurate. Also, I made an interval to predict more precisely.
+
+* * *
+
+## Part 6: Conclusion
+
+My research question was what properties of movie makes audience watch the movie. Building linear regression model, I found that type of movie, genre of movie, runtime, rave rated from audience, whether it's included in top 200 box were most important factor in predicting the number of votes.
+With my model, I predicted the number of votes of the movie 'Deadpool' quite accurately. However, since the model's R-squared is slightly above 60%, there must be more variable influencing movie's popularity. For further study, undiscovered variables should be found to predict figures more accurately.
